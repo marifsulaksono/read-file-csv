@@ -1,11 +1,33 @@
 package main
 
 import (
+	"bufio"
 	"encoding/csv"
 	"fmt"
+	"io"
 	"log"
 	"os"
 )
+
+func readRecords(file io.ReadSeeker) ([][]string, error) {
+	firstRow, err := bufio.NewReader(file).ReadSlice('\n')
+	if err != nil {
+		return nil, err
+	}
+
+	_, err = file.Seek(int64(len(firstRow)), io.SeekStart)
+	if err != nil {
+		return nil, err
+	}
+
+	reader := csv.NewReader(file)
+	records, err := reader.ReadAll()
+	if err != nil {
+		return nil, err
+	}
+
+	return records, nil
+}
 
 func main() {
 	file, err := os.Open("employee.csv")
@@ -15,8 +37,7 @@ func main() {
 
 	defer file.Close()
 
-	reader := csv.NewReader(file)
-	records, err := reader.ReadAll()
+	records, err := readRecords(file)
 	if err != nil {
 		log.Fatalln("Error when reading records :", err)
 	}
