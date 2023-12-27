@@ -1,48 +1,44 @@
 package main
 
 import (
-	"bufio"
-	"encoding/csv"
+	"context"
 	"fmt"
-	"io"
 	"log"
 	"os"
+	"read-csv/config"
+	"read-csv/helper"
 )
 
-func readRecords(file io.ReadSeeker) ([][]string, error) {
-	firstRow, err := bufio.NewReader(file).ReadSlice('\n')
-	if err != nil {
-		return nil, err
-	}
-
-	_, err = file.Seek(int64(len(firstRow)), io.SeekStart)
-	if err != nil {
-		return nil, err
-	}
-
-	reader := csv.NewReader(file)
-	records, err := reader.ReadAll()
-	if err != nil {
-		return nil, err
-	}
-
-	return records, nil
-}
-
 func main() {
-	file, err := os.Open("employee.csv")
+	ctx := context.Background()
+	file, err := os.Open("organizers.csv")
 	if err != nil {
 		log.Fatalln("Error when open file csv :", err)
 	}
-
 	defer file.Close()
 
-	records, err := readRecords(file)
+	db, err := config.ConnectToDatabase()
+	if err != nil {
+		log.Fatalf("Connection failed : %v", err)
+	}
+
+	records, err := helper.ReadAllRecordsWithoutHeader(file)
 	if err != nil {
 		log.Fatalln("Error when reading records :", err)
 	}
 
-	for _, eachRecord := range records {
-		fmt.Printf("name : %s \t role : %s\n", eachRecord[1], eachRecord[2])
+	for i, eachRecord := range records {
+		query := "INSERT INTO organizers VALUES(?,?,?,?,?,?)"
+		stmt, err := db.PrepareContext(ctx, query)
+		if err != nil {
+			log.Printf("Error prepare statement : %v", err)
+		}
+
+		_, err = stmt.ExecContext(ctx, nil, eachRecord[1], eachRecord[2], eachRecord[3], eachRecord[4], eachRecord[5])
+		if err != nil {
+			log.Printf("Error execute statement : %v", err)
+		}
+
+		fmt.Printf("Success insert data - %d\n", i)
 	}
 }
